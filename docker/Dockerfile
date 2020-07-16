@@ -1,4 +1,4 @@
-FROM hysds/pge-base:latest-es1
+FROM hysds/pge-base:develop-es1
 MAINTAINER torresal "alexander.p.torres@jpl.nasa.gov"
 LABEL description="Order ASTER products from metadata"
 
