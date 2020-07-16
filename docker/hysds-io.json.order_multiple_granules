@@ -1,0 +1,13 @@
+{
+  "label": "Order - Multiple ASTER granules from Metadata",
+  "submission_type": "individual",
+  "allowed_accounts": [
+    "ops"
+  ],
+  "params": [
+    {
+      "name": "producer_granule_id",
+      "from": "dataset_jpath:_source.metadata.producer_granule_id"
+    }
+  ]
+}
