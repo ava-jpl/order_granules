@@ -1,11 +1,11 @@
+#!/usr/bin/env python
+
 import os
 import requests
 import json
 import socket
 import xmltodict
 import logging
-# from hysds.celery import app
-# from hysds_commons.elasticsearch_utils import ElasticsearchUtility
 
 
 def main():
@@ -15,13 +15,21 @@ def main():
     #                     filemode='a', level=logging.DEBUG)
     # logger = logging
 
+    # load context
+    ctx = load_context()
+    producer_granule_ids = ctx.get("producer_granule_id", False)
+    dataset_ids = ctx.get("dataset_id", False)
+    catalog_item_ids = ctx.get("catalog_item_id", False)
+    granule_urs = ctx.get("granule_ur", False)
+    short_names = ctx.get("short_name", False)
+
     # load creds
     creds = load_creds()
     username = creds.get("username", False)
     password = creds.get("password", False)
     client_id = creds.get("client_id", False)
-    token = creds.get("user_ip_address", False)
-    user_ip_address = creds.get("token", False)
+    user_ip_address = creds.get("user_ip_address", False)
+    token = creds.get("token", False)
     order_id = creds.get("order_id", False)
 
     if (user_ip_address is False):
@@ -39,40 +47,21 @@ def main():
         creds['order_id'] = order_id
         update_creds(creds)
 
-    query_granule_ids()
+    # generate token
+    token = generate_token(username, password, client_id, user_ip_address)
 
+    # create empty order
+    order_id = generate_empty_order(username, token)
 
-def query_granule_ids():
-    # # query for granule ids
-    # ctx = load_context()
-    # query_obj = ctx['query']
-    # try:
-    #     query_obj = json.loads(query_obj)
-    #     if (query_obj["filtered"]["query"]["bool"]["must"][0]["term"]["dataset.raw"] == "metadata-AST_09T"):
-    #         es_index = "grq_v1.0_metadata-ast_09t"
-    #     elif (query_obj["filtered"]["query"]["bool"]["must"][0]["term"]["dataset.raw"] == "metadata-AST_L1B"):
-    #         es_index = "grq_v1.0_metadata-ast_l1b"
-    #     else:
-    #         raise Exception(
-    #             "Must filter either 'metadata-AST_L1B' or 'metadata-AST_09T' datatsets")
-    # except TypeError as e:
-    #     logger.warning(e)
+    # add user information
+    add_user_information(token, order_id)
 
-    # es_url = app.conf["GRQ_ES_URL"]
-    # es = ElasticsearchUtility(es_url, logger=logger)
-    # query = {"query": query_obj}
+    # add to order
+    add_to_order(order_id, token, dataset_ids, catalog_item_ids,
+                 granule_urs, producer_granule_ids, short_names)
 
-    # results = es.query(es_index, query)  # Querying for products
-    # print(results)
-
-    # gather granule metadata from CMR or AVA system
-    '''Localizes and ingests product from input metadata blob'''
-    # load parameters
-    ctx = load_context()
-    producer_granule_ids = ctx.get("producer_granule_id", False)
-    print(producer_granule_ids)
-
-# generate CMR token
+    # submit
+    submit_order(token, order_id)
 
 
 def generate_token(username, password, client_id, user_ip_address):
@@ -80,15 +69,6 @@ def generate_token(username, password, client_id, user_ip_address):
     try:
         post_token_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens"
         print("POST TOKEN URL: {}".format(post_token_url))
-
-        # # load creds
-        # creds = load_creds()
-        # username = creds.get("username", False)
-        # password = creds.get("password", False)
-        # client_id = creds.get("client_id", False)
-        # user_ip_address = creds.get("user_ip_address", False)
-        # if (user_ip_address is False):
-        #     user_ip_address = socket.gethostbyname(socket.gethostname())
 
         # make post call
         body = {"token": {
@@ -120,10 +100,6 @@ def generate_empty_order(username, token):
         post_generate_order_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders"
         print("POST ORDER URL: {}".format(post_generate_order_url))
 
-        # # load creds
-        # creds = load_creds()
-        # username = creds.get("username", False)
-
         # make post call
         headers = {"Echo-Token": token}
 
@@ -144,10 +120,94 @@ def generate_empty_order(username, token):
         raise Exception('unable generate an order ID')
 
 
-# add granules to order
+def add_user_information(token, order_id):
+    ''' Add user information to order '''
+    try:
+        post_user_info_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/user_information".format(
+            order_id)
+        print("POST ADD USER INFO URL: {}".format(post_user_info_url))
+
+        # get user_info.xml file location
+        creds_file = os.path.join(
+            os.path.dirname(__file__), "conf/user_info.xml")
+
+        # make post call
+        headers = {'Content-Type': 'text/xml', "Echo-Token": token}
+
+        with open(creds_file) as body:
+            print("POST ORDER BODY: {}".format(body))
+            r = requests.post(url=post_user_info_url,
+                              data=body, headers=headers)
+            print("POST ORDER RESPONSE: {}".format(r.text))
+
+    except:
+        raise Exception(
+            'unable to add user information to order ID: {}'.format(order_id))
 
 
-# submit order
+def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids, short_names):
+    ''' Add producer_granule_ids to order '''
+
+    # check if inputs have equal length
+    if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
+        raise Exception(
+            "List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
+
+    try:
+        post_order_items_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/order_items".format(
+            order_id)
+        print("POST ADD ORDER ITEMS URL: {}".format(post_order_items_url))
+
+        # make post call
+        headers = {'Content-Type': 'application/xml', "Echo-Token": token}
+
+        for i in range(len(producer_granule_ids)):
+            if short_names[i] == "AST_L1B":
+                body = load_ast_l1b_ecs_options()
+            elif short_names[i] == "AST_09T":
+                body = load_ast_09t_ecs_options()
+            body['order_item']['dataset_id'] = dataset_ids[i]
+            body['order_item']['catalog_item_id'] = catalog_item_ids[i]
+            body['order_item']['granule_ur'] = granule_urs[i]
+            body['order_item']['producer_granule_id'] = producer_granule_ids[i]
+            body = xmltodict.unparse(body, pretty=True)
+
+            print("POST ORDER BODY: {}".format(body))
+
+            r = requests.post(url=post_order_items_url,
+                              data=body, headers=headers)
+            print("POST ORDER RESPONSE: {}".format(r.text))
+
+            if (r.raise_for_status() is None):
+                tree = xmltodict.parse(r.text)
+                order = tree['order_item']['id']
+                print("Order Item ID: {}".format(order))
+                # return order
+
+    except:
+        raise Exception(
+            'unable to add producer_granule_ids to order ID: {}'.format(order_id))
+
+
+def submit_order(token, order_id):
+    '''Submit order to LPDAAC'''
+    try:
+        post_submit_order_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/submit".format(
+            order_id)
+        print("POST SUBMIT ORDER URL: {}".format(post_submit_order_url))
+
+        # make post call
+        headers = {"Echo-Token": token}
+
+        r = requests.post(url=post_submit_order_url, headers=headers)
+        print("POST SUBMIT ORDER RESPONSE: {}".format(r.text))
+        r.raise_for_status()
+
+        if (r.status_code == 204):
+            print("successfully placed order for order ID: {}".format(order_id))
+
+    except:
+        raise Exception('unable to submit order ID: {}'.format(order_id))
 
 
 def load_context():
@@ -164,8 +224,8 @@ def load_context():
 def load_creds():
     '''loads the creds file into a dict'''
     try:
-        cwd = os.getcwd()
-        creds_file = os.path.join(cwd, "conf/creds.json")
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/creds.json")
         with open(creds_file, 'r') as fin:
             creds = json.load(fin)
         return creds
@@ -176,12 +236,38 @@ def load_creds():
 def update_creds(creds):
     '''updates the creds file into a dict'''
     try:
-        cwd = os.getcwd()
-        creds_file = os.path.join(cwd, "conf/creds.json")
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/creds.json")
         with open(creds_file, 'w') as fin:
             creds = json.dump(creds, fin)
     except:
         raise Exception('unable to update conf/creds.json from work directory')
+
+
+def load_ast_09t_ecs_options():
+    '''loads the creds file into a dict'''
+    try:
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/AST_09T_ecs_options.xml")
+        with open(creds_file) as fin:
+            tree = xmltodict.parse(fin.read(), process_namespaces=True)
+        return tree
+    except:
+        raise Exception(
+            'unable to parse conf/AST_09T_ecs_options.xml from work directory')
+
+
+def load_ast_l1b_ecs_options():
+    '''loads the creds file into a dict'''
+    try:
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/AST_L1B_ecs_options.xml")
+        with open(creds_file) as fin:
+            tree = xmltodict.parse(fin.read(), process_namespaces=True)
+        return tree
+    except:
+        raise Exception(
+            'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
 
 
 if __name__ == '__main__':

@@ -8,6 +8,22 @@
     {
       "name": "producer_granule_id",
       "from": "dataset_jpath:_source.metadata.producer_granule_id"
+    },
+    {
+      "name": "dataset_id",
+      "from": "dataset_jpath:_source.metadata.dataset_id"
+    },
+    {
+      "name": "catalog_item_id",
+      "from": "dataset_jpath:_source.metadata.id"
+    },
+    {
+      "name": "granule_ur",
+      "from": "dataset_jpath:_source.metadata.title"
+    },
+    {
+      "name": "short_name",
+      "from": "dataset_jpath:_source.metadata.short_name"
     }
   ]
 }

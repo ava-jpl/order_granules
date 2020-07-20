@@ -16,6 +16,22 @@
     {
       "name": "producer_granule_id",
       "destination": "context"
+    },
+    {
+      "name": "dataset_id",
+      "destination": "context"
+    },
+    {
+      "name": "catalog_item_id",
+      "destination": "context"
+    },
+    {
+      "name": "granule_ur",
+      "destination": "context"
+    },
+    {
+      "name": "short_name",
+      "destination": "context"
     }
   ]
 }
