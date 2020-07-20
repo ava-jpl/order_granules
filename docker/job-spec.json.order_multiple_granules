@@ -1,5 +1,5 @@
 {
-  "command": "/home/ops/verdi/ops/order_granlues/order_granules.py",
+  "command": "/home/ops/verdi/ops/order_granules/order_granules.py",
   "recommended_queues": [
     "factotum-job_worker-small",
     "factotum-job_worker-large",
