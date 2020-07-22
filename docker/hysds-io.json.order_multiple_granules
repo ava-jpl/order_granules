@@ -8,11 +8,11 @@
     {
       "name": "cmr_enviorment",
       "from": "submitter",
+      "type": "enum",
       "enumerables": [
         "PROD",
         "UAT"
-      ],
-      "default": "PROD"
+      ]
     },
     {
       "name": "producer_granule_id",

@@ -8,6 +8,7 @@ import xmltodict
 import logging
 from hysds.celery import app
 
+# CMR enviorments
 CMR_URL_PROD = "https://cmr.earthdata.nasa.gov"
 CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
 
@@ -45,21 +46,15 @@ def main():
         creds['user_ip_address'] = user_ip_address
         update_creds(creds)
 
-    # if (token is False):
-    #     token = generate_token(username, password, client_id, user_ip_address)
-    #     creds['token'] = token
-    #     update_creds(creds)
+    if (token is False):
+        token = generate_token(cmr_url, username, password, client_id, user_ip_address)
+        creds['token'] = token
+        update_creds(creds)
 
-    # if (order_id is False):
-    #     order_id = generate_empty_order(username, token)
-    #     creds['order_id'] = order_id
-    #     update_creds(creds)
-
-    # generate token
-    token = generate_token(cmr_url, username, password, client_id, user_ip_address)
-
-    # create empty order
-    order_id = generate_empty_order(cmr_url, username, token)
+    if (order_id is False):
+        order_id = generate_empty_order(cmr_url, username, token)
+        creds['order_id'] = order_id
+        update_creds(creds)
 
     # add user information
     add_user_information(cmr_url, token, order_id)
