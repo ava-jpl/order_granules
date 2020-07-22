@@ -6,7 +6,10 @@ import json
 import socket
 import xmltodict
 import logging
+from hysds.celery import app
 
+CMR_URL_PROD = "https://cmr.earthdata.nasa.gov"
+CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
 
 def main():
 
@@ -17,6 +20,11 @@ def main():
 
     # load context
     ctx = load_context()
+    cmr_env = ctx.get("cmr_enviorment", False)
+    if cmr_env == "PROD":
+        cmr_url = CMR_URL_PROD
+    elif cmr_env == "UAT":
+        cmr_url = CMR_URL_UAT
     producer_granule_ids = ctx.get("producer_granule_id", False)
     dataset_ids = ctx.get("dataset_id", False)
     catalog_item_ids = ctx.get("catalog_item_id", False)
@@ -37,37 +45,37 @@ def main():
         creds['user_ip_address'] = user_ip_address
         update_creds(creds)
 
-    if (token is False):
-        token = generate_token(username, password, client_id, user_ip_address)
-        creds['token'] = token
-        update_creds(creds)
+    # if (token is False):
+    #     token = generate_token(username, password, client_id, user_ip_address)
+    #     creds['token'] = token
+    #     update_creds(creds)
 
-    if (order_id is False):
-        order_id = generate_empty_order(username, token)
-        creds['order_id'] = order_id
-        update_creds(creds)
+    # if (order_id is False):
+    #     order_id = generate_empty_order(username, token)
+    #     creds['order_id'] = order_id
+    #     update_creds(creds)
 
     # generate token
-    token = generate_token(username, password, client_id, user_ip_address)
+    token = generate_token(cmr_url, username, password, client_id, user_ip_address)
 
     # create empty order
-    order_id = generate_empty_order(username, token)
+    order_id = generate_empty_order(cmr_url, username, token)
 
     # add user information
-    add_user_information(token, order_id)
+    add_user_information(cmr_url, token, order_id)
 
     # add to order
-    add_to_order(order_id, token, dataset_ids, catalog_item_ids,
+    add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids,
                  granule_urs, producer_granule_ids, short_names)
 
     # submit
-    submit_order(token, order_id)
+    submit_order(cmr_url, token, order_id)
 
 
-def generate_token(username, password, client_id, user_ip_address):
+def generate_token(cmr_url, username, password, client_id, user_ip_address):
     ''' Generate a CMR token using credentials. They will last for a month.'''
     try:
-        post_token_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/tokens"
+        post_token_url = "{}/legacy-services/rest/tokens".format(cmr_url)
         print("POST TOKEN URL: {}".format(post_token_url))
 
         # make post call
@@ -94,10 +102,10 @@ def generate_token(username, password, client_id, user_ip_address):
 
 
 # generate empty order
-def generate_empty_order(username, token):
+def generate_empty_order(cmr_url, username, token):
     ''' Generate an empty order from CMR using credentials.'''
     try:
-        post_generate_order_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders"
+        post_generate_order_url = "{}/legacy-services/rest/orders".format(cmr_url)
         print("POST ORDER URL: {}".format(post_generate_order_url))
 
         # make post call
@@ -120,10 +128,10 @@ def generate_empty_order(username, token):
         raise Exception('unable generate an order ID')
 
 
-def add_user_information(token, order_id):
+def add_user_information(cmr_url, token, order_id):
     ''' Add user information to order '''
     try:
-        post_user_info_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/user_information".format(
+        post_user_info_url = "{}/legacy-services/rest/orders/{}/user_information".format(cmr_url,
             order_id)
         print("POST ADD USER INFO URL: {}".format(post_user_info_url))
 
@@ -132,20 +140,21 @@ def add_user_information(token, order_id):
             os.path.dirname(__file__), "conf/user_info.xml")
 
         # make post call
-        headers = {'Content-Type': 'text/xml', "Echo-Token": token}
+        headers = {'Content-Type': 'application/xml', "Echo-Token": token}
 
-        with open(creds_file) as body:
-            print("POST ORDER BODY: {}".format(body))
-            r = requests.post(url=post_user_info_url,
-                              data=body, headers=headers)
-            print("POST ORDER RESPONSE: {}".format(r.text))
+        body = open(creds_file).read()
+        print("POST ADD USER INFO BODY: {}".format(body))
+
+        r = requests.put(url=post_user_info_url,
+                         data=body, headers=headers)
+        print("POST ADD USER INFO RESPONSE: {}".format(r.text))
 
     except:
         raise Exception(
             'unable to add user information to order ID: {}'.format(order_id))
 
 
-def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids, short_names):
+def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids, short_names):
     ''' Add producer_granule_ids to order '''
 
     # check if inputs have equal length
@@ -154,7 +163,7 @@ def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, pr
             "List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
 
     try:
-        post_order_items_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/order_items".format(
+        post_order_items_url = "{}/legacy-services/rest/orders/{}/order_items".format(cmr_url,
             order_id)
         print("POST ADD ORDER ITEMS URL: {}".format(post_order_items_url))
 
@@ -162,6 +171,11 @@ def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, pr
         headers = {'Content-Type': 'application/xml', "Echo-Token": token}
 
         for i in range(len(producer_granule_ids)):
+            # check if granule is already in the system
+            if exists(producer_granule_ids[i], short_names[i]):
+                continue
+
+            # get ecs options
             if short_names[i] == "AST_L1B":
                 body = load_ast_l1b_ecs_options()
             elif short_names[i] == "AST_09T":
@@ -174,6 +188,7 @@ def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, pr
 
             print("POST ORDER BODY: {}".format(body))
 
+            # make post request
             r = requests.post(url=post_order_items_url,
                               data=body, headers=headers)
             print("POST ORDER RESPONSE: {}".format(r.text))
@@ -189,10 +204,10 @@ def add_to_order(order_id, token, dataset_ids, catalog_item_ids, granule_urs, pr
             'unable to add producer_granule_ids to order ID: {}'.format(order_id))
 
 
-def submit_order(token, order_id):
+def submit_order(cmr_url, token, order_id):
     '''Submit order to LPDAAC'''
     try:
-        post_submit_order_url = "https://cmr.earthdata.nasa.gov/legacy-services/rest/orders/{}/submit".format(
+        post_submit_order_url = "{}/legacy-services/rest/orders/{}/submit".format(cmr_url,
             order_id)
         print("POST SUBMIT ORDER URL: {}".format(post_submit_order_url))
 
@@ -268,6 +283,32 @@ def load_ast_l1b_ecs_options():
     except:
         raise Exception(
             'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
+
+def exists(producer_granule_id, shortname):
+    '''queries grq to see if the input id exists. Returns True if it does, False if not'''
+    VERSION = "v1.0"
+    if shortname == "AST_L1B":
+        PROD_TYPE = "grq_v1.0_ast_l1b"
+    elif shortname == "AST_09T":
+        PROD_TYPE = "grq_v1.0_ast_09t"
+    grq_ip = app.conf['GRQ_ES_URL']#.replace(':9200', '').replace('http://', 'https://')
+    grq_url = '{0}/{1}/_search'.format(grq_ip, PROD_TYPE.format(VERSION, shortname))
+    es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{}}
+    return query_es(grq_url, es_query)
+
+def query_es(grq_url, es_query):
+    '''simple single elasticsearch query, used for existence. returns count of result.'''
+    print('querying: {} with {}'.format(grq_url, es_query))
+    response = requests.post(grq_url, data=json.dumps(es_query), verify=False)
+    try:
+        response.raise_for_status()
+    except:
+        # if there is an error (or 404,just publish
+        return 0
+    results = json.loads(response.text, encoding='ascii')
+    results_list = results.get('hits', {}).get('hits', [])
+    total_count = results.get('hits', {}).get('total', 0)
+    return int(total_count)
 
 
 if __name__ == '__main__':
