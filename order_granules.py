@@ -126,9 +126,9 @@ def generate_empty_order(cmr_url, username, token):
 def add_user_information(cmr_url, token, order_id):
     ''' Add user information to order '''
     try:
-        post_user_info_url = "{}/legacy-services/rest/orders/{}/user_information".format(cmr_url,
+        put_user_info_url = "{}/legacy-services/rest/orders/{}/user_information".format(cmr_url,
             order_id)
-        print("POST ADD USER INFO URL: {}".format(post_user_info_url))
+        print("PUT ADD USER INFO URL: {}".format(put_user_info_url))
 
         # get user_info.xml file location
         creds_file = os.path.join(
@@ -138,11 +138,11 @@ def add_user_information(cmr_url, token, order_id):
         headers = {'Content-Type': 'application/xml', "Echo-Token": token}
 
         body = open(creds_file).read()
-        print("POST ADD USER INFO BODY: {}".format(body))
+        print("PUT ADD USER INFO BODY: {}".format(body))
 
-        r = requests.put(url=post_user_info_url,
+        r = requests.put(url=put_user_info_url,
                          data=body, headers=headers)
-        print("POST ADD USER INFO RESPONSE: {}".format(r.text))
+        print("PUT ADD USER INFO RESPONSE: {}".format(r.text))
 
     except:
         raise Exception(
@@ -167,14 +167,20 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
 
         for i in range(len(producer_granule_ids)):
             # check if granule is already in the system
-            if exists(producer_granule_ids[i], short_names[i]):
+            if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
                 continue
 
             # get ecs options
-            if short_names[i] == "AST_L1B":
-                body = load_ast_l1b_ecs_options()
+            elif short_names[i] == "AST_L1B":
+                if cmr_url == CMR_URL_UAT:
+                    body = load_ast_l1b_uat_ecs_options()
+                else:
+                    body = load_ast_l1b_ecs_options()
             elif short_names[i] == "AST_09T":
-                body = load_ast_09t_ecs_options()
+                if cmr_url == CMR_URL_UAT:
+                    body = load_ast_09t_uat_ecs_options()
+                else:
+                    body = load_ast_09t_ecs_options()
             body['order_item']['dataset_id'] = dataset_ids[i]
             body['order_item']['catalog_item_id'] = catalog_item_ids[i]
             body['order_item']['granule_ur'] = granule_urs[i]
@@ -279,7 +285,32 @@ def load_ast_l1b_ecs_options():
         raise Exception(
             'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
 
-def exists(producer_granule_id, shortname):
+def load_ast_09t_uat_ecs_options():
+    '''loads the creds file into a dict'''
+    try:
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/AST_09T_UAT_ecs_options.xml")
+        with open(creds_file) as fin:
+            tree = xmltodict.parse(fin.read(), process_namespaces=True)
+        return tree
+    except:
+        raise Exception(
+            'unable to parse conf/AST_09T_ecs_options.xml from work directory')
+
+
+def load_ast_l1b_uat_ecs_options():
+    '''loads the creds file into a dict'''
+    try:
+        dirname = os.path.dirname(__file__)
+        creds_file = os.path.join(dirname, "conf/AST_L1B_UAT_ecs_options.xml")
+        with open(creds_file) as fin:
+            tree = xmltodict.parse(fin.read(), process_namespaces=True)
+        return tree
+    except:
+        raise Exception(
+            'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
+
+def exists(producer_granule_id, shortname, id):
     '''queries grq to see if the input id exists. Returns True if it does, False if not'''
     VERSION = "v1.0"
     if shortname == "AST_L1B":
@@ -288,7 +319,7 @@ def exists(producer_granule_id, shortname):
         PROD_TYPE = "grq_v1.0_ast_09t"
     grq_ip = app.conf['GRQ_ES_URL']#.replace(':9200', '').replace('http://', 'https://')
     grq_url = '{0}/{1}/_search'.format(grq_ip, PROD_TYPE.format(VERSION, shortname))
-    es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{}}
+    es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.short_name.raw","query":shortname}},{"query_string":{"default_field":"metadata.id.raw","query":id}},{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[],"aggs":{}}
     return query_es(grq_url, es_query)
 
 def query_es(grq_url, es_query):

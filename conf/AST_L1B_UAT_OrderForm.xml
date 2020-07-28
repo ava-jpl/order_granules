@@ -1,0 +1,67 @@
+AST_L1B
+
+Last Update: Never Updated | Scope: PROVIDER | Deprecated: false | Sort Key: B
+
+Description: ASTER L1B Registered Radiance at the Sensor
+Form XML:
+
+<form xmlns="http://echo.nasa.gov/v9/echoforms" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://echo.nasa.gov/v9/echoforms" xsi:schemaLocation="http://echo.nasa.gov/v9/echoforms http://api.echo.nasa.gov/echo/wsdl/EchoForms.xsd">
+
+	<model>
+		<instance>
+			<ecs:options xmlns:ecs="http://ecs.nasa.gov/options" xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" xmlns:lpdaacSchemaLocation="/v1/AST_04.xsd">
+
+				<!--Default distribution method is FTP Pull -->
+				<ecs:distribution>
+					<ecs:mediatype>
+						<ecs:value>FtpPull</ecs:value>
+					</ecs:mediatype>
+					<ecs:mediaformat>
+						<ecs:ftppull-format>
+							<ecs:value>FILEFORMAT</ecs:value>
+						</ecs:ftppull-format>
+					</ecs:mediaformat>
+				</ecs:distribution>
+
+				<ecs:processing>
+					<ecs:endpoint>http://elpdvx158.cr.usgs.gov:8280/tcoc/PXG_v1/ProcessingXMLGateway</ecs:endpoint>
+					<ecs:consider-processing-options-in-request-bundling>false</ecs:consider-processing-options-in-request-bundling>
+					<ecs:max-order-item-size>100</ecs:max-order-item-size>
+				</ecs:processing>
+
+				<lpdaac:subsetSpecification>
+					<lpdaac:productName criteriaName="Product Name" criteriaType="FIXED">AST_L1B</lpdaac:productName>
+					<lpdaac:longName criteriaName="Long Name" criteriaType="FIXED">ASTER L1B Registered Radiance at the Sensor</lpdaac:longName>
+					<lpdaac:granuleSize criteriaName="Granule_size" criteriaType="FIXED">0.0</lpdaac:granuleSize>
+					<lpdaac:fileFormat criteriaName="File Format" criteriaType="FIXED">
+						<lpdaac:fileFormatValue>HDF</lpdaac:fileFormatValue>
+					</lpdaac:fileFormat>
+				</lpdaac:subsetSpecification>
+
+			</ecs:options>
+		</instance>
+
+		<extension xmlns:auto="http://echo.nasa.gov/v9/echoforms/autopopulate" name="auto:autopopulate">
+			<auto:expressions>
+				<auto:expression metadata="/results/provider/result/GranuleURMetaData/DataGranule/SizeMBDataGranule/text()" ref="/ecs:options/lpdaac:subsetSpecification/lpdaac:granuleSize"/>
+			</auto:expressions>
+		</extension>
+	</model>
+
+	<ui>
+		<group xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" id="DistributionOptionsGroup" label="Distribution Options" ref="ecs:distribution">
+			<output id="MediaTypeOutput" label="Media Type:" relevant="ecs:mediatype/ecs:value ='FtpPull'" type="xsd:string" value="'Http Pull'"/>
+
+			<output id="FtpPullMediaFormatOutput" label="Http Pull Media Format:" relevant="ecs:mediaformat/ecs:ftppull-format/ecs:value='FILEFORMAT'" type="xsd:string" value="'File'"/>
+		</group>
+
+		<group label="Processing Options" ref="lpdaac:subsetSpecification">
+
+			<select id="OutputFileTypeSelect" label="Data Format:" multiple="false" open="false" ref="lpdaac:fileFormat" required="true()" type="xsd:string" valueElementName="fileFormatValue">
+				<item label="HDF-EOS" value="HDF"/>
+				<item label="GeoTIFF" value="GeoTIFF"/>
+			</select>
+		</group>
+	</ui>
+</form>
+

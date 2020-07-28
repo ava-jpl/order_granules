@@ -1,0 +1,51 @@
+<order_item>
+  <dataset_id> ASTER L2 Surface Radiance TIR V003</dataset_id>
+  <catalog_item_id></catalog_item_id>
+  <granule_ur></granule_ur>
+  <producer_granule_id></producer_granule_id>
+  <quantity>1</quantity>
+  <option_selection>
+    <option_definition_name>AST_09T_2020-02-03</option_definition_name>
+    <content>
+			<![CDATA[<ecs:options xmlns:ecs="http://ecs.nasa.gov/options" xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" xmlns:lpdaacSchemaLocation="/v1/AST_09.xsd">
+            
+				<!--Default distribution method is FTP Pull -->
+				<ecs:distribution>
+					<ecs:mediatype>
+						<ecs:value>FtpPull</ecs:value>
+					</ecs:mediatype>
+					<ecs:mediaformat>
+						<ecs:ftppull-format>
+							<ecs:value>FILEFORMAT</ecs:value>
+						</ecs:ftppull-format>
+					</ecs:mediaformat>
+				</ecs:distribution>
+
+				<ecs:processing>
+					<ecs:endpoint>http://elpdvx158.cr.usgs.gov:8280/tcoc/PXG_v1/ProcessingXMLGateway</ecs:endpoint>
+					<ecs:consider-processing-options-in-request-bundling>false</ecs:consider-processing-options-in-request-bundling>
+					<ecs:max-order-item-size>100</ecs:max-order-item-size>
+				</ecs:processing>
+
+				<lpdaac:subsetSpecification>
+					<lpdaac:productName criteriaName="Product Name" criteriaType="FIXED">AST_09T</lpdaac:productName>
+					<lpdaac:longName criteriaName="Long Name" criteriaType="FIXED">ASTER On-Demand L2 Surface Radiance TIR</lpdaac:longName>
+					<lpdaac:granuleSize criteriaName="Granule_size" criteriaType="FIXED">0.0</lpdaac:granuleSize>
+					<lpdaac:fileFormat criteriaName="File Format" criteriaType="FIXED">
+						<lpdaac:fileFormatValue>HDF</lpdaac:fileFormatValue>
+					</lpdaac:fileFormat>
+					<lpdaac:aerosols criteriaName="Aerosols" criteriaType="STRING">
+						<lpdaac:aerosolsValue>Climatology</lpdaac:aerosolsValue>
+					</lpdaac:aerosols>
+					<lpdaac:columnOzone criteriaName="Column Ozone" criteriaType="STRING">
+						<lpdaac:columnOzoneValue>OZ2DAILY - NCEP TOVS Daily Ozone</lpdaac:columnOzoneValue>
+					</lpdaac:columnOzone>
+					<lpdaac:moistureTemperaturePressure criteriaName="Moisture, Temperature, Pressure" criteriaType="STRING">
+						<lpdaac:moistureTemperaturePressureValue>GDAS0ZFH - NOAA/NCEP GDAS model, 6h, 1 deg</lpdaac:moistureTemperaturePressureValue>
+					</lpdaac:moistureTemperaturePressure>
+				</lpdaac:subsetSpecification>
+
+			</ecs:options>]]>
+    </content>
+  </option_selection>
+</order_item>
