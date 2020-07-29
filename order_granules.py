@@ -15,7 +15,7 @@ CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
 # create order_granule.log
 LOG_FILE_NAME = 'order_granules.log'
 logging.basicConfig(filename=LOG_FILE_NAME,
-                    filemode='a', level=logging.DEBUG)
+                    filemode='a', level=logging.INFO)
 logger = logging
 
 def main():
@@ -246,8 +246,8 @@ def submit_order(cmr_url, token, order_id):
         r.raise_for_status()
 
         if (r.status_code == 204):
-            print("Successfully placed order for order ID: {}".format(order_id))
-            logger.info("Successfully placed order for order ID: {}".format(order_id))
+            print("Successfully submitted order for order ID: {}".format(order_id))
+            logger.info("Successfully submitted order for order ID: {}".format(order_id))
 
     except:
         raise Exception('unable to submit order ID: {}'.format(order_id))
