@@ -189,42 +189,42 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
         # make post call
         headers = {'Content-Type': 'application/xml', "Echo-Token": token}
 
-        for i in range(len(producer_granule_ids)):
+        # for i in range(len(producer_granule_ids)):
             # check if granule is already in the system
             # if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
             #     continue
 
-            # get ecs options
-            if short_names[i] == "AST_L1B":
-                if cmr_url == CMR_URL_UAT:
-                    body = load_ast_l1b_uat_ecs_options()
-                else:
-                    body = load_ast_l1b_ecs_options()
-            elif short_names[i] == "AST_09T":
-                if cmr_url == CMR_URL_UAT:
-                    body = load_ast_09t_uat_ecs_options()
-                else:
-                    body = load_ast_09t_ecs_options()
-            body['order_item']['dataset_id'] = dataset_ids[i]
-            body['order_item']['catalog_item_id'] = catalog_item_ids[i]
-            body['order_item']['granule_ur'] = granule_urs[i]
-            body['order_item']['producer_granule_id'] = producer_granule_ids[i]
-            body = xmltodict.unparse(body, pretty=True)
+        # get ecs options
+        if short_names == "AST_L1B":
+            if cmr_url == CMR_URL_UAT:
+                body = load_ast_l1b_uat_ecs_options()
+            else:
+                body = load_ast_l1b_ecs_options()
+        elif short_names == "AST_09T":
+            if cmr_url == CMR_URL_UAT:
+                body = load_ast_09t_uat_ecs_options()
+            else:
+                body = load_ast_09t_ecs_options()
+        body['order_item']['dataset_id'] = dataset_ids
+        body['order_item']['catalog_item_id'] = catalog_item_ids
+        body['order_item']['granule_ur'] = granule_urs
+        body['order_item']['producer_granule_id'] = producer_granule_ids
+        body = xmltodict.unparse(body, pretty=True)
 
-            print("POST ADD ORDER ITEMS BODY: {}".format(body))
+        print("POST ADD ORDER ITEMS BODY: {}".format(body))
 
-            # make post request
-            r = requests.post(url=post_order_items_url,
-                              data=body, headers=headers)
-            print("POST ADD ORDER ITEMS RESPONSE: {}".format(r.text))
+        # make post request
+        r = requests.post(url=post_order_items_url,
+                            data=body, headers=headers)
+        print("POST ADD ORDER ITEMS RESPONSE: {}".format(r.text))
 
-            if (r.raise_for_status() is None):
-                tree = xmltodict.parse(r.text)
-                order = tree['order_item']['order_ref']['id']
-                ordered_catalog_item_id = tree['order_item']['catalog_item_id']
-                print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
-                logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
-                # return order
+        if (r.raise_for_status() is None):
+            tree = xmltodict.parse(r.text)
+            order = tree['order_item']['order_ref']['id']
+            ordered_catalog_item_id = tree['order_item']['catalog_item_id']
+            print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
+            logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
+            # return order
 
     except:
         raise Exception(
