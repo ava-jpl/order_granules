@@ -12,12 +12,13 @@ from hysds.celery import app
 CMR_URL_PROD = "https://cmr.earthdata.nasa.gov"
 CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
 
-def main():
+# create order_granule.log
+LOG_FILE_NAME = 'order_granules.log'
+logging.basicConfig(filename=LOG_FILE_NAME,
+                    filemode='a', level=logging.DEBUG)
+logger = logging
 
-    # LOG_FILE_NAME = 'order_granules.log'
-    # logging.basicConfig(filename=LOG_FILE_NAME,
-    #                     filemode='a', level=logging.DEBUG)
-    # logger = logging
+def main():
 
     # load context
     ctx = load_context()
@@ -44,26 +45,47 @@ def main():
     if (user_ip_address is False):
         user_ip_address = socket.gethostbyname(socket.gethostname())
         creds['user_ip_address'] = user_ip_address
-        update_creds(creds)
+        # update_creds(creds)
 
     if (token is False):
         token = generate_token(cmr_url, username, password, client_id, user_ip_address)
         creds['token'] = token
-        update_creds(creds)
+        # update_creds(creds)
 
     if (order_id is False):
         order_id = generate_empty_order(cmr_url, username, token)
         creds['order_id'] = order_id
-        update_creds(creds)
+        # update_creds(creds)
 
-    # add user information
+    granules_added = 0
+    for i in range(len(catalog_item_ids)):
+
+        if granules_added >= 100:
+            # add user information
+            add_user_information(cmr_url, token, order_id)
+            # submit
+            submit_order(cmr_url, token, order_id)
+            # generate new order_id
+            order_id = generate_empty_order(cmr_url, username, token)
+            # reset counter
+            granules_added = 0
+
+        # check if granule is already in the system
+        if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
+            logger.warning("{} already exists in AVA".format(catalog_item_ids[i]))
+            continue
+
+        else:
+            # add to order
+            add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids,
+                        granule_urs, producer_granule_ids, short_names)
+            # increment the counter 
+            granules_added = granules_added + 1
+            
+    # add user information to last order id
     add_user_information(cmr_url, token, order_id)
 
-    # add to order
-    add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids,
-                 granule_urs, producer_granule_ids, short_names)
-
-    # submit
+    # submit last order id
     submit_order(cmr_url, token, order_id)
 
 
@@ -90,6 +112,7 @@ def generate_token(cmr_url, username, password, client_id, user_ip_address):
             tree = xmltodict.parse(r.text)
             token = tree['token']['id']
             print("Generated CMR token: {}".format(token))
+            logger.info("Generated CMR token: {}".format(token))
             return token
 
     except:
@@ -117,6 +140,7 @@ def generate_empty_order(cmr_url, username, token):
             tree = xmltodict.parse(r.text)
             order = tree['order']['id']
             print("Generated order ID: {}".format(order))
+            logger.info("Generated order ID: {}".format(order))
             return order
 
     except:
@@ -167,11 +191,11 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
 
         for i in range(len(producer_granule_ids)):
             # check if granule is already in the system
-            if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
-                continue
+            # if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
+            #     continue
 
             # get ecs options
-            elif short_names[i] == "AST_L1B":
+            if short_names[i] == "AST_L1B":
                 if cmr_url == CMR_URL_UAT:
                     body = load_ast_l1b_uat_ecs_options()
                 else:
@@ -197,7 +221,9 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
             if (r.raise_for_status() is None):
                 tree = xmltodict.parse(r.text)
                 order = tree['order_item']['id']
-                print("Order Item ID: {}".format(order))
+                ordered_catalog_item_id = tree['order_item']['catalog_item_id']
+                print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
+                logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
                 # return order
 
     except:
@@ -220,7 +246,8 @@ def submit_order(cmr_url, token, order_id):
         r.raise_for_status()
 
         if (r.status_code == 204):
-            print("successfully placed order for order ID: {}".format(order_id))
+            print("Successfully placed order for order ID: {}".format(order_id))
+            logger.info("Successfully placed order for order ID: {}".format(order_id))
 
     except:
         raise Exception('unable to submit order ID: {}'.format(order_id))
