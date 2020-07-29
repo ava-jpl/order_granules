@@ -77,8 +77,8 @@ def main():
 
         else:
             # add to order
-            add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids,
-                        granule_urs, producer_granule_ids, short_names)
+            add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i],
+                        granule_urs[i], producer_granule_ids[i], short_names[i])
             # increment the counter 
             granules_added = granules_added + 1
             
@@ -211,16 +211,16 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
             body['order_item']['producer_granule_id'] = producer_granule_ids[i]
             body = xmltodict.unparse(body, pretty=True)
 
-            print("POST ORDER BODY: {}".format(body))
+            print("POST ADD ORDER ITEMS BODY: {}".format(body))
 
             # make post request
             r = requests.post(url=post_order_items_url,
                               data=body, headers=headers)
-            print("POST ORDER RESPONSE: {}".format(r.text))
+            print("POST ADD ORDER ITEMS RESPONSE: {}".format(r.text))
 
             if (r.raise_for_status() is None):
                 tree = xmltodict.parse(r.text)
-                order = tree['order_item']['id']
+                order = tree['order_item']['order_ref']['id']
                 ordered_catalog_item_id = tree['order_item']['catalog_item_id']
                 print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
                 logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
