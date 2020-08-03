@@ -33,6 +33,11 @@ def main():
     granule_urs = ctx.get("granule_ur", False)
     short_names = ctx.get("short_name", False)
 
+    # check if inputs have equal length
+    if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
+        raise Exception(
+            "List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
+
     # load creds
     creds = load_creds()
     username = creds.get("username", False)
@@ -175,11 +180,6 @@ def add_user_information(cmr_url, token, order_id):
 
 def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids, short_names):
     ''' Add producer_granule_ids to order '''
-
-    # check if inputs have equal length
-    if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
-        raise Exception(
-            "List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
 
     try:
         post_order_items_url = "{}/legacy-services/rest/orders/{}/order_items".format(cmr_url,
