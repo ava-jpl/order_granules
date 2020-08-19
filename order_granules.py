@@ -82,10 +82,18 @@ def main():
 
         else:
             # add to order
-            add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i],
+            status = add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i],
                         granule_urs[i], producer_granule_ids[i], short_names[i])
-            # increment the counter 
-            granules_added = granules_added + 1
+            if status == 422:
+                # generate new token
+                token = generate_token(cmr_url, username, password, client_id, user_ip_address)
+                # attempt to add to order with new token
+                status = add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i], granule_urs[i], producer_granule_ids[i], short_names[i])
+                # increment the counter 
+                granules_added = granules_added + 1
+            else:
+                # increment the counter 
+                granules_added = granules_added + 1
             
     # add user information to last order id
     add_user_information(cmr_url, token, order_id)
@@ -218,13 +226,15 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
                             data=body, headers=headers)
         print("POST ADD ORDER ITEMS RESPONSE: {}".format(r.text))
 
-        if (r.raise_for_status() is None):
+        if r.status_code == 422:
+            return 422
+        elif (r.raise_for_status() is None):
             tree = xmltodict.parse(r.text)
             order = tree['order_item']['order_ref']['id']
             ordered_catalog_item_id = tree['order_item']['catalog_item_id']
             print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
             logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
-            # return order
+            return None
 
     except:
         raise Exception(
