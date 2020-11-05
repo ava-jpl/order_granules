@@ -231,9 +231,9 @@ def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granul
         elif (r.raise_for_status() is None):
             tree = xmltodict.parse(r.text)
             order = tree['order_item']['order_ref']['id']
-            ordered_catalog_item_id = tree['order_item']['catalog_item_id']
-            print("Added {} to order ID {}".format(ordered_catalog_item_id,order))
-            logger.info("Added {} to order ID {}".format(ordered_catalog_item_id,order))
+            ordered_granule_ur = tree['order_item']['granule_ur']
+            print("Added {} to order ID {}".format(ordered_granule_ur,order))
+            logger.info("Added {} to order ID {}".format(ordered_granule_ur,order))
             return None
 
     except:
