@@ -76,8 +76,8 @@ def main():
             granules_added = 0
 
         # check if granule is already in the system
-        if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
-            logger.warning("{} already exists in AVA".format(catalog_item_ids[i]))
+        if exists(producer_granule_ids[i], short_names[i], granule_urs[i]):
+            logger.warning("{} already exists in AVA".format(granule_urs[i]))
             continue
 
         else:
@@ -354,9 +354,12 @@ def exists(producer_granule_id, shortname, id):
         PROD_TYPE = "grq_v1.0_ast_l1b"
     elif shortname == "AST_09T":
         PROD_TYPE = "grq_v1.0_ast_09t"
+    split_id = id.split(":")
+    id = "*" + split_id[-1]
     grq_ip = app.conf['GRQ_ES_URL']#.replace(':9200', '').replace('http://', 'https://')
     grq_url = '{0}/{1}/_search'.format(grq_ip, PROD_TYPE.format(VERSION, shortname))
-    es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.short_name.raw","query":shortname}},{"query_string":{"default_field":"metadata.id.raw","query":id}},{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[],"aggs":{}}
+    # es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.short_name.raw","query":shortname}},{"query_string":{"default_field":"metadata.id.raw","query":id}},{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[],"aggs":{}}
+    es_query = {"query":{"bool":{"must":[{"term":{"metadata.short_name.raw":shortname}},{"term":{"metadata.producer_granule_id.raw":producer_granule_id}},{"wildcard":{"metadata.title.raw":id}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{}}
     return query_es(grq_url, es_query)
 
 def query_es(grq_url, es_query):
