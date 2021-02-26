@@ -1,8 +1,8 @@
 {
   "command": "/home/ops/verdi/ops/order_granules/order_granules.py",
   "recommended_queues": [
-    "factotum-job_worker-small",
     "factotum-job_worker-large",
+    "factotum-job_worker-small",
     "ava-job_worker-small"
   ],
   "imported_worker_files": {

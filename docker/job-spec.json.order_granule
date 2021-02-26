@@ -1,36 +1,36 @@
 {
-  "command":"/home/ops/verdi/ops/order_granule/order_granlue.py",
+  "command": "/home/ops/verdi/ops/order_granules/order_granules.py",
+  "recommended_queues": [
+    "factotum-job_worker-large",
+    "factotum-job_worker-small",
+    "ava-job_worker-small"
+  ],
   "imported_worker_files": {
     "/home/ops/.netrc": "/home/ops/.netrc",
     "/home/ops/.aws": "/home/ops/.aws"
   },
-  "disk_usage":"10GB",
-  "recommended-queues": ["factotum-job_worker-large", "ava-job_worker-large", "ava-job_worker-small"],
-  "soft_time_limit": 2000,
-  "time_limit": 2800,
-  "params" : [
+  "disk_usage": "10GB",
+  "soft_time_limit": 604800,
+  "time_limit": 604900,
+  "params": [
     {
-      "name": "ava_url",
+      "name": "cmr_enviorment",
       "destination": "context"
     },
     {
-      "name": "on_ava",
+      "name": "producer_granule_id",
       "destination": "context"
     },
     {
-      "name": "metadata",
+      "name": "dataset_id",
       "destination": "context"
     },
     {
-      "name": "starttime",
+      "name": "catalog_item_id",
       "destination": "context"
     },
     {
-      "name": "endtime",
-      "destination": "context"
-    },
-    {
-      "name": "location",
+      "name": "granule_ur",
       "destination": "context"
     },
     {

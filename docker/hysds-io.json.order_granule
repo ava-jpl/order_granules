@@ -1,31 +1,34 @@
 {
-    "label": "Order - ASTER granule from Metadata",
-    "submission_type": "iteration",
-    "enable_dedup": false,
-    "params" : [
+  "label": "Order - ASTER granule from Metadata",
+  "submission_type": "iteration",
+  "allowed_accounts": [
+    "ops"
+  ],
+  "params": [
     {
-      "name": "ava_url",
-      "from": "dataset_jpath:_source.metadata.ava_url"
+      "name": "cmr_enviorment",
+      "from": "submitter",
+      "type": "enum",
+      "enumerables": [
+        "PROD",
+        "UAT"
+      ]
     },
     {
-      "name": "on_ava",
-      "from": "dataset_jpath:_source.metadata.on_ava"
+      "name": "producer_granule_id",
+      "from": "dataset_jpath:_source.metadata.producer_granule_id"
     },
     {
-      "name": "metadata",
-      "from": "dataset_jpath:_source.metadata"
+      "name": "dataset_id",
+      "from": "dataset_jpath:_source.metadata.dataset_id"
     },
     {
-      "name": "starttime",
-      "from": "dataset_jpath:_source.starttime"
+      "name": "catalog_item_id",
+      "from": "dataset_jpath:_source.metadata.id"
     },
     {
-      "name": "endtime",
-      "from": "dataset_jpath:_source.endtime"
-    },
-    {
-      "name": "location",
-      "from": "dataset_jpath:_source.location"
+      "name": "granule_ur",
+      "from": "dataset_jpath:_source.metadata.title"
     },
     {
       "name": "short_name",
