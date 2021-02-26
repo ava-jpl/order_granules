@@ -33,10 +33,18 @@ def main():
     granule_urs = ctx.get("granule_ur", False)
     short_names = ctx.get("short_name", False)
 
-    # check if inputs have equal length
-    if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
-        raise Exception(
-            "List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
+    # check inputs
+    if (type(producer_granule_ids) is list and type(dataset_ids) is list and type(catalog_item_ids) is list and type(granule_urs) is list and type(short_names) is list):
+        if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
+            raise Exception("List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
+    elif (type(producer_granule_ids) is str and type(dataset_ids) is str and type(catalog_item_ids) is str and type(granule_urs) is str and type(short_names) is str):
+        producer_granule_ids = [producer_granule_ids]
+        dataset_ids = [dataset_ids]
+        catalog_item_ids = [catalog_item_ids]
+        granule_urs = [granule_urs]
+        short_names = [short_names]
+    elif (dataset_ids is False or catalog_item_ids is False or granule_urs is False or producer_granule_ids is False or short_names is False):
+        raise Exception("Either of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are empty")
 
     # load creds
     creds = load_creds()
@@ -94,12 +102,16 @@ def main():
             else:
                 # increment the counter 
                 granules_added = granules_added + 1
-            
-    # add user information to last order id
-    add_user_information(cmr_url, token, order_id)
 
-    # submit last order id
-    submit_order(cmr_url, token, order_id)
+    if granules_added == 0:
+        raise Exception("No granules were added to order_id: {}. Order was not submitted".format(order_id))            
+
+    else:      
+        # add user information to last order id
+        add_user_information(cmr_url, token, order_id)
+
+        # submit last order id
+        submit_order(cmr_url, token, order_id)
 
 
 def generate_token(cmr_url, username, password, client_id, user_ip_address):
