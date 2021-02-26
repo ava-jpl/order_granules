@@ -6,6 +6,7 @@ import json
 import socket
 import xmltodict
 import logging
+import traceback
 from hysds.celery import app
 
 # CMR enviorments
@@ -390,4 +391,11 @@ def query_es(grq_url, es_query):
 
 
 if __name__ == '__main__':
-    main()
+    try: status = main()
+    except Exception as e:
+        with open('_alt_error.txt', 'w') as f:
+            f.write("%s\n" % str(e))
+        with open('_alt_traceback.txt', 'w') as f:
+            f.write("%s\n" % traceback.format_exc())
+        raise
+    
