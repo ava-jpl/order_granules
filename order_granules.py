@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import requests
 import json
 import socket
@@ -398,4 +399,5 @@ if __name__ == '__main__':
         with open('_alt_traceback.txt', 'w') as f:
             f.write("%s\n" % traceback.format_exc())
         raise
+    sys.exit(status)
     
