@@ -13,8 +13,6 @@ from hysds_commons.job_utils import resolve_hysds_job
 
 TEST = False
 
-BASE_PATH = os.path.dirname(__file__)
-
 if TEST == True:
     es_url = "http://localhost:9203/"
 else:
@@ -24,14 +22,9 @@ ES = elasticsearch.Elasticsearch(es_url)
 
 def get_params(job_name, queue, job_version, priority, tags, shortname, starttime, endtime , env):
     """
-    This function would query for all the acquisitions that
-    temporally and spatially overlap with the AOI
-    :param location:
-    :param start_time:
-    :param end_time:
-    :return:
+    This function would query for all the granules for AST_09T or AST_L1B
     """
-
+    # query granule metdata
     if shortname == "AST_L1B":
         _type = "metadata-AST_L1B"
         index = "grq_v1.0_metadata-ast_l1b"
@@ -44,6 +37,7 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
     else:
         query = {"query":{"bool":{"must":[{"match_all":{}}],"must_not":[],"should":[]}},"sort":[]}
 
+    # get granule metadata
     granule_list = []
     rest_url = es_url[:-1] if es_url.endswith('/') else es_url
     url = "{}/{}/_search?search_type=scan&scroll=60&size=10000".format(rest_url, index)
@@ -99,7 +93,7 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
         job_params = {
             'queue': queue,
             'priority': int(priority),
-            'tags': '[{0}]'.format(tags),
+            'tags': tags,
             'type': '%s:%s' % (job_name, job_version),
             'params': json.dumps(params),
             'enable_dedup': True,
@@ -113,53 +107,22 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
 def submit_job(job_name, job_params):
     # submit mozart job
     try:
-        job_json = resolve_hysds_job(job_params.type, job_params.queue, job_params.priority,
-                                                                    job_params.tags, job_params.params,
+        job_json = resolve_hysds_job(job_params["type"], job_params["queue"], job_params["priority"],
+                                                                    job_params["tags"], job_params["params"],
                                                                     job_name=job_name,
-                                                                    payload_hash=job_params.payload_hash,
-                                                                    enable_dedup=job_params.enable_dedup)
+                                                                    payload_hash=job_params["payload_hash"],
+                                                                    enable_dedup=job_params["enable_dedup"])
         ident = submit_hysds_job(job_json)
         print("JOB ID: {}".format(ident))
 
     except Exception as e:
-        raise Exception("Failed to submit HySDS Job:\nERROR: '{0}'".format(e))
-
-    # if TEST == True:
-    #     MOZART_REST_URL = "https://localhost:9202/mozart/api/v0.1"
-    # else:
-    #     MOZART_REST_URL = app.conf['MOZART_REST_URL']
-
-    # # requests retry parameters
-    # # retry_strategy = Retry(total=3, status_forcelist=[429, 500, 502, 503, 504], method_whitelist=["HEAD", "POST", "OPTIONS"])
-    # # adapter = HTTPAdapter(max_retries=retry_strategy)
-    # # Requests = requests.Session()
-    # # Requests.mount("https://", adapter)
-    # # Requests.mount("http://", adapter)    
-
-    # job_submit_url = "{}{}".format(MOZART_REST_URL, '/job/submit')
-    # # params = {"type": job_params["type"], "queue": job_params["queue"]}
-    # params = job_params
-    # print('submitting jobs with params: %s' % json.dumps(params))
-    # # r = requests.post(job_submit_url, params=params, data=json.dumps(params), verify=False)
-    # r = requests.post(job_submit_url, params=params, verify=False)
-    # if r.status_code != 200:
-    #     print('submission job failed')
-    #     r.raise_for_status()
-    # result = r.json()
-    # if 'result' in list(result.keys()) and 'success' in list(result.keys()):
-    #     if result['success'] == True:
-    #         job_id = result['result']
-    #         print('successfully submitted job')
-    #     else:
-    #         raise Exception('job not submitted successfully')
-    # else:
-    #     raise Exception('job not submitted successfully')
+        raise Exception("Failed to submit HySDS Job:\nERROR: {0}".format(e))
 
 
 if __name__ == '__main__':
     today = date.today()
     date = today.strftime("%Y%m%d")
-    default_tags = str(date) + '-automated-granule-order';
+    default_tags = [str(date) + '-automated-granule-order'];
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-j', '--job_name', help='Job name',
                         dest='job_name', required=False, default="job-order_multiple_granules")
@@ -180,4 +143,5 @@ if __name__ == '__main__':
                         dest='endtime', required=False)
     args = parser.parse_args()
     params = get_params(args.job_name, args.queue, args.version, args.priority, args.tags, args.short_name, args.starttime, args.endtime, args.env)
+    print(json.dumps(params, indent=4, sort_keys=True))
     submit_job(args.job_name, params)
