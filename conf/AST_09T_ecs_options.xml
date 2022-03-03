@@ -5,9 +5,9 @@
   <producer_granule_id></producer_granule_id>
   <quantity>1</quantity>
   <option_selection>
-    <option_definition_name>AST_09T_2020-02-03</option_definition_name>
+    <option_definition_name>AST_09T_2021-12-10</option_definition_name>
     <content>
-      <![CDATA[<ecs:options xmlns:ecs="http://ecs.nasa.gov/options" xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" xmlns:lpdaacSchemaLocation="/v1/AST_09.xsd">
+      <![CDATA[<ecs:options xmlns:ecs="http://ecs.nasa.gov/options" xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" xmlns:lpdaacSchemaLocation="/v1/AST_09_OMI.xsd">
       <!--Default distribution method is FTP Pull -->
       <ecs:distribution>
         <ecs:mediatype>
