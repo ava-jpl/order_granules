@@ -8,10 +8,11 @@ import socket
 import xmltodict
 import logging
 import traceback
+import base64
 from hysds.celery import app
 
 # CMR enviorments
-CMR_URL_PROD = "https://cmr.earthdata.nasa.gov"
+CMR_URL_PROD = "https://urs.earthdata.nasa.gov"
 CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
 
 # create order_granule.log
@@ -119,25 +120,18 @@ def main():
 def generate_token(cmr_url, username, password, client_id, user_ip_address):
     ''' Generate a CMR token using credentials. They will last for a month.'''
     try:
-        post_token_url = "{}/legacy-services/rest/tokens".format(cmr_url)
+        post_token_url = "{}/api/users/token".format(cmr_url)
         print("POST TOKEN URL: {}".format(post_token_url))
 
         # make post call
-        body = {"token": {
-            "username": username,
-            "password": password,
-            "client_id": client_id,
-            "user_ip_address": user_ip_address
-        }
-        }
-        print("POST TOKEN BODY: {}".format(body))
-
-        r = requests.post(url=post_token_url, json=body)
+        usrPass = "{}:{}".format(username, password).encode()
+        b64Val = base64.b64encode(usrPass)
+        r = requests.post(url=post_token_url, headers={"Authorization": "Basic {}".format(b64Val.decode())})
         print("POST TOKEN RESPONSE: {}".format(r.text))
 
         if (r.raise_for_status() is None):
-            tree = xmltodict.parse(r.text)
-            token = tree['token']['id']
+            rdata = json.loads(r.text)
+            token = rdata["access_token"]
             print("Generated CMR token: {}".format(token))
             logger.info("Generated CMR token: {}".format(token))
             return token
