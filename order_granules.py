@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import os
 import sys
 import requests
@@ -9,11 +8,20 @@ import xmltodict
 import logging
 import traceback
 import base64
+import pandas as pd
 from hysds.celery import app
+
 
 # CMR enviorments
 CMR_URL_PROD = "https://urs.earthdata.nasa.gov"
 CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
+
+# ECS Options
+AST_09T_ECS_OPTIONS = "conf/AST_09T_2023_12_27.json"
+AST_L1B_ECS_OPTIONS = "conf/AST_L1B_2023_12_27.json"
+
+# Order Size Limit
+ORDER_LIMIT = 50
 
 # create order_granule.log
 LOG_FILE_NAME = 'order_granules.log'
@@ -21,8 +29,8 @@ logging.basicConfig(filename=LOG_FILE_NAME,
                     filemode='a', level=logging.INFO)
 logger = logging
 
-def main():
 
+def main():
     # load context
     ctx = load_context()
     cmr_env = ctx.get("cmr_enviorment", False)
@@ -30,24 +38,26 @@ def main():
         cmr_url = CMR_URL_PROD
     elif cmr_env == "UAT":
         cmr_url = CMR_URL_UAT
-    producer_granule_ids = ctx.get("producer_granule_id", False)
-    dataset_ids = ctx.get("dataset_id", False)
-    catalog_item_ids = ctx.get("catalog_item_id", False)
+    collection_concept_ids = ctx.get("collection_concept_id", False)
+    provider_ids = ctx.get("provider_id", False)
+    granule_concept_ids = ctx.get("granule_concept_id", False) 
     granule_urs = ctx.get("granule_ur", False)
+    producer_granule_ids = ctx.get("producer_granule_id", False)
     short_names = ctx.get("short_name", False)
 
     # check inputs
-    if (type(producer_granule_ids) is list and type(dataset_ids) is list and type(catalog_item_ids) is list and type(granule_urs) is list and type(short_names) is list):
-        if (len(dataset_ids) != len(catalog_item_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names)):
-            raise Exception("List of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are of uneven length")
-    elif (type(producer_granule_ids) is str and type(dataset_ids) is str and type(catalog_item_ids) is str and type(granule_urs) is str and type(short_names) is str):
+    if (type(producer_granule_ids) is list and type(collection_concept_ids) is list and type(granule_concept_ids) is list and type(granule_urs) is list and type(short_names) is list and type(provider_ids) is list):
+        if (len(collection_concept_ids) != len(granule_concept_ids) != len(granule_urs) != len(producer_granule_ids) != len(short_names) != len(provider_ids)):
+            raise Exception("List of collection_concept_ids, granule_concept_ids, granule_urs, producer_granule_ids, provider_ids are of uneven length")
+    elif (type(producer_granule_ids) is str and type(collection_concept_ids) is str and type(granule_concept_ids) is str and type(granule_urs) is str and type(short_names) is str and type(provider_ids) is str):
         producer_granule_ids = [producer_granule_ids]
-        dataset_ids = [dataset_ids]
-        catalog_item_ids = [catalog_item_ids]
+        collection_concept_ids = [collection_concept_ids]
+        granule_concept_ids = [granule_concept_ids]
         granule_urs = [granule_urs]
         short_names = [short_names]
-    elif (dataset_ids is False or catalog_item_ids is False or granule_urs is False or producer_granule_ids is False or short_names is False):
-        raise Exception("Either of dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids are empty")
+        provider_ids = [provider_ids]
+    elif (collection_concept_ids is False or granule_concept_ids is False or granule_urs is False or producer_granule_ids is False or short_names is False or provider_ids is False):
+        raise Exception("Either of collection_concept_ids, granule_concept_ids, granule_urs, producer_granule_ids, provider_ids are empty")
 
     # load creds
     creds = load_creds()
@@ -68,53 +78,49 @@ def main():
         creds['token'] = token
         # update_creds(creds)
 
-    if (order_id is False):
-        order_id = generate_empty_order(cmr_url, username, token)
-        creds['order_id'] = order_id
-        # update_creds(creds)
-
-    granules_added = 0
-    for i in range(len(catalog_item_ids)):
-
-        if granules_added >= 100:
-            # add user information
-            add_user_information(cmr_url, token, order_id)
-            # submit
-            submit_order(cmr_url, token, order_id)
-            # generate new order_id
-            order_id = generate_empty_order(cmr_url, username, token)
-            # reset counter
-            granules_added = 0
-
+    # remove granules that exist in AVA
+    for i in range(len(producer_granule_ids)):
         # check if granule is already in the system
         if exists(producer_granule_ids[i], short_names[i], granule_urs[i]):
             logger.warning("{} already exists in AVA".format(granule_urs[i]))
-            continue
+            producer_granule_ids.pop(i)
+            collection_concept_ids.pop(i)
+            granule_concept_ids.pop(i)
+            granule_urs.pop(i)
+            short_names.pop(i)
+            provider_ids.pop(i)
 
-        else:
-            # add to order
-            status = add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i],
-                        granule_urs[i], producer_granule_ids[i], short_names[i])
-            if status == 422:
-                # generate new token
-                token = generate_token(cmr_url, username, password, client_id, user_ip_address)
-                # attempt to add to order with new token
-                status = add_to_order(cmr_url, order_id, token, dataset_ids[i], catalog_item_ids[i], granule_urs[i], producer_granule_ids[i], short_names[i])
-                # increment the counter 
-                granules_added = granules_added + 1
-            else:
-                # increment the counter 
-                granules_added = granules_added + 1
+    # create order items dataframe
+    order_items_df = pd.DataFrame({
+                "granuleConceptId": granule_concept_ids,
+                "granuleUr": granule_urs,
+                "producerGranuleId": producer_granule_ids
+            })
+    order_items = order_items_df.to_dict('records')
 
-    if granules_added == 0:
-        raise Exception("No granules were added to order_id: {}. Order was not submitted".format(order_id))            
+    # get collectionConceptId, short_name, and provider_id
+    collection_concept_id = set(collection_concept_ids).pop()
+    provider_id = set(provider_ids).pop()
+    short_name = set(short_names).pop()
 
-    else:      
-        # add user information to last order id
-        add_user_information(cmr_url, token, order_id)
+    # get ecs options
+    ecs_options = {}
+    if short_name == "AST_L1B":
+        # if cmr_url == CMR_URL_UAT:
+        #     body = load_ast_l1b_uat_ecs_options()
+        # else:
+        ecs_options = load_ast_l1b_ecs_options()
+    elif short_name == "AST_09T":
+        # if cmr_url == CMR_URL_UAT:
+        #     body = load_ast_09t_uat_ecs_options()
+        # else:
+        ecs_options = load_ast_09t_ecs_options()
 
-        # submit last order id
-        submit_order(cmr_url, token, order_id)
+    # submit orders 
+    while len(order_items) > 0:
+        order_batch = order_items[0:ORDER_LIMIT]
+        submit_order(cmr_url, token, ecs_options, collection_concept_id, provider_id, order_batch)
+        del order_items[0:ORDER_LIMIT]
 
 
 def generate_token(cmr_url, username, password, client_id, user_ip_address):
@@ -136,139 +142,68 @@ def generate_token(cmr_url, username, password, client_id, user_ip_address):
             logger.info("Generated CMR token: {}".format(token))
             return token
 
-    except:
-        raise Exception('unable generate a CMR token using credentials')
+    except Exception as e:
+        raise Exception("Unable generate a CMR token using credentials\nError: {}".format(e))
 
 
-# generate empty order
-def generate_empty_order(cmr_url, username, token):
-    ''' Generate an empty order from CMR using credentials.'''
+def submit_order(cmr_url, token, ecs_options, collection_concept_id, provider_id, order_batch):
+    '''
+    Submit order to LPDAAC
+    Example:
+        {
+            "query":"mutation CreateOrder ($optionSelection: OptionSelectionInput!$orderItems: [OrderItemInput!]!$collectionConceptId: String!$providerId: String!) {createOrder (optionSelection: $optionSelection orderItems: $orderItems collectionConceptId: $collectionConceptId providerId: $providerId) {id state}}",
+            "variables": {
+                "collectionConceptId": "C1299783609-LPDAAC_ECS",
+                "optionSelection": {
+                    "conceptId": "OO2700492578-LPDAAC_ECS",
+                    "name": "AST_09T_2023_12_27",
+                    "content": "<ecs:options xmlns:ecs=\"http://ecs.nasa.gov/options\" xmlns:lpdaac=\"http://lpdaac.usgs.gov/orderoptions.v1\" xmlns:lpdaacSchemaLocation=\"/v1/AST_09_OMI.xsd\"><!--Default distribution method is FTP Pull --><ecs:distribution><ecs:mediatype><ecs:value>FtpPull</ecs:value></ecs:mediatype><ecs:mediaformat><ecs:ftppull-format><ecs:value>FILEFORMAT</ecs:value></ecs:ftppull-format></ecs:mediaformat></ecs:distribution><ecs:processing><ecs:endpoint>http://elpdx159.cr.usgs.gov:8180/tcoc/PXG_v1/ProcessingXMLGateway</ecs:endpoint><ecs:consider-processing-options-in-request-bundling>false</ecs:consider-processing-options-in-request-bundling><ecs:max-order-item-size>50</ecs:max-order-item-size></ecs:processing><lpdaac:subsetSpecification><lpdaac:productName criteriaName=\"Product Name\" criteriaType=\"FIXED\">AST_09T</lpdaac:productName><lpdaac:longName criteriaName=\"Long Name\" criteriaType=\"FIXED\">ASTER On-Demand L2 Surface Radiance TIR</lpdaac:longName><lpdaac:granuleSize criteriaName=\"Granule_size\" criteriaType=\"FIXED\">0</lpdaac:granuleSize><lpdaac:fileFormat criteriaName=\"File Format\" criteriaType=\"FIXED\"><lpdaac:fileFormatValue>HDF</lpdaac:fileFormatValue></lpdaac:fileFormat><lpdaac:aerosols criteriaName=\"Aerosols\" criteriaType=\"STRING\"><lpdaac:aerosolsValue>Climatology</lpdaac:aerosolsValue></lpdaac:aerosols><lpdaac:columnOzone criteriaName=\"Column Ozone\" criteriaType=\"STRING\"><lpdaac:columnOzoneValue>OZ2DAILY - NCEP TOVS Daily Ozone</lpdaac:columnOzoneValue></lpdaac:columnOzone><lpdaac:moistureTemperaturePressure criteriaName=\"Moisture, Temperature, Pressure\" criteriaType=\"STRING\"><lpdaac:moistureTemperaturePressureValue>GDAS0ZFH - NOAA/NCEP GDAS model, 6h, 1 deg</lpdaac:moistureTemperaturePressureValue></lpdaac:moistureTemperaturePressure></lpdaac:subsetSpecification></ecs:options>"
+                },
+                "providerId": "LPDAAC_ECS",
+                "orderItems": [
+                    {
+                        "granuleConceptId": "G2946767529-LPDAAC_ECS",
+                        "granuleUr": "SC:AST_09T.003:2699270593",
+                        "producerGranuleId": "AST_L1A#00304222024232153_04232024080015.hdf"
+                    }
+                ]
+            }
+        }
+    '''
     try:
-        post_generate_order_url = "{}/legacy-services/rest/orders".format(cmr_url)
-        print("POST ORDER URL: {}".format(post_generate_order_url))
-
-        # make post call
-        headers = {"Echo-Token": token}
-
-        body = {"order": {"owner_id": username}}
-        print("POST ORDER BODY: {}".format(body))
-
-        r = requests.post(url=post_generate_order_url,
-                          json=body, headers=headers)
-        print("POST ORDER RESPONSE: {}".format(r.text))
-
-        if (r.raise_for_status() is None):
-            tree = xmltodict.parse(r.text)
-            order = tree['order']['id']
-            print("Generated order ID: {}".format(order))
-            logger.info("Generated order ID: {}".format(order))
-            return order
-
-    except:
-        raise Exception('unable generate an order ID')
-
-
-def add_user_information(cmr_url, token, order_id):
-    ''' Add user information to order '''
-    try:
-        put_user_info_url = "{}/legacy-services/rest/orders/{}/user_information".format(cmr_url,
-            order_id)
-        print("PUT ADD USER INFO URL: {}".format(put_user_info_url))
-
-        # get user_info.xml file location
-        creds_file = os.path.join(
-            os.path.dirname(__file__), "conf/user_info.xml")
-
-        # make post call
-        headers = {'Content-Type': 'application/xml', "Echo-Token": token}
-
-        body = open(creds_file).read()
-        print("PUT ADD USER INFO BODY: {}".format(body))
-
-        r = requests.put(url=put_user_info_url,
-                         data=body, headers=headers)
-        print("PUT ADD USER INFO RESPONSE: {}".format(r.text))
-
-    except:
-        raise Exception(
-            'unable to add user information to order ID: {}'.format(order_id))
-
-
-def add_to_order(cmr_url, order_id, token, dataset_ids, catalog_item_ids, granule_urs, producer_granule_ids, short_names):
-    ''' Add producer_granule_ids to order '''
-
-    try:
-        post_order_items_url = "{}/legacy-services/rest/orders/{}/order_items".format(cmr_url,
-            order_id)
-        print("POST ADD ORDER ITEMS URL: {}".format(post_order_items_url))
-
-        # make post call
-        headers = {'Content-Type': 'application/xml', "Echo-Token": token}
-
-        # for i in range(len(producer_granule_ids)):
-            # check if granule is already in the system
-            # if exists(producer_granule_ids[i], short_names[i], catalog_item_ids[i]):
-            #     continue
-
-        # get ecs options
-        if short_names == "AST_L1B":
-            if cmr_url == CMR_URL_UAT:
-                body = load_ast_l1b_uat_ecs_options()
-            else:
-                body = load_ast_l1b_ecs_options()
-        elif short_names == "AST_09T":
-            if cmr_url == CMR_URL_UAT:
-                body = load_ast_09t_uat_ecs_options()
-            else:
-                body = load_ast_09t_ecs_options()
-        body['order_item']['dataset_id'] = dataset_ids
-        body['order_item']['catalog_item_id'] = catalog_item_ids
-        body['order_item']['granule_ur'] = granule_urs
-        body['order_item']['producer_granule_id'] = producer_granule_ids
-        body = xmltodict.unparse(body, pretty=True)
-
-        print("POST ADD ORDER ITEMS BODY: {}".format(body))
-
-        # make post request
-        r = requests.post(url=post_order_items_url,
-                            data=body, headers=headers)
-        print("POST ADD ORDER ITEMS RESPONSE: {}".format(r.text))
-
-        if r.status_code == 422:
-            return 422
-        elif (r.raise_for_status() is None):
-            tree = xmltodict.parse(r.text)
-            order = tree['order_item']['order_ref']['id']
-            ordered_granule_ur = tree['order_item']['granule_ur']
-            print("Added {} to order ID {}".format(ordered_granule_ur,order))
-            logger.info("Added {} to order ID {}".format(ordered_granule_ur,order))
-            return None
-
-    except:
-        raise Exception(
-            'unable to add producer_granule_ids to order ID: {}'.format(order_id))
-
-
-def submit_order(cmr_url, token, order_id):
-    '''Submit order to LPDAAC'''
-    try:
-        post_submit_order_url = "{}/legacy-services/rest/orders/{}/submit".format(cmr_url,
-            order_id)
+        post_submit_order_url = "{}/ordering/api".format(cmr_url)
         print("POST SUBMIT ORDER URL: {}".format(post_submit_order_url))
 
         # make post call
-        headers = {"Echo-Token": token}
+        headers = {"Authorization": "Bearer {}".format(token)}
 
-        r = requests.post(url=post_submit_order_url, headers=headers)
+        # body
+        body = {
+                "query":"mutation CreateOrder ($optionSelection: OptionSelectionInput!$orderItems: [OrderItemInput!]!$collectionConceptId: String!$providerId: String!) {createOrder (optionSelection: $optionSelection orderItems: $orderItems collectionConceptId: $collectionConceptId providerId: $providerId) {id state}}",
+                "variables": {
+                    "collectionConceptId": collection_concept_id,
+                    "optionSelection": ecs_options,
+                    "providerId": provider_id,
+                    "orderItems": order_batch
+                }
+            }
+
+        r = requests.post(url=post_submit_order_url, headers=headers, body=json.dumps(body))
         print("POST SUBMIT ORDER RESPONSE: {}".format(r.text))
         r.raise_for_status()
 
-        if (r.status_code == 204):
+        if (r.status_code == 200):
+            order_id = r.json()["data"]["createOrder"]["id"]
             print("Successfully submitted order for order ID: {}".format(order_id))
             logger.info("Successfully submitted order for order ID: {}".format(order_id))
+            return True
+        else:
+            print("Unable to submit order:\n{}".format(json.dumps(body, indent=2)))
+            logger.warning("Unable to submit order:\n{}".format(json.dumps(body, indent=2)))
+            return False
 
-    except:
-        raise Exception('unable to submit order ID: {}'.format(order_id))
+    except Exception as e:
+        raise Exception('Unable to submit order:\n{}\nError: {}'.format(json.dumps(body, indent=2), e))
 
 
 def load_context():
@@ -308,27 +243,30 @@ def update_creds(creds):
 def load_ast_09t_ecs_options():
     '''loads the creds file into a dict'''
     try:
+        creds = {}
         dirname = os.path.dirname(__file__)
-        creds_file = os.path.join(dirname, "conf/AST_09T_ecs_options.xml")
-        with open(creds_file) as fin:
-            tree = xmltodict.parse(fin.read(), process_namespaces=True)
-        return tree
-    except:
+        creds_file = os.path.join(dirname, AST_09T_ECS_OPTIONS)
+        with open(creds_file, 'r') as fin:
+            creds = json.load(fin)
+        return creds
+    except Exception as e:
         raise Exception(
-            'unable to parse conf/AST_09T_ecs_options.xml from work directory')
+            'Unable to parse {} from work directory\nError: {}'.format(AST_09T_ECS_OPTIONS, e))
 
 
 def load_ast_l1b_ecs_options():
     '''loads the creds file into a dict'''
     try:
+        creds = {}
         dirname = os.path.dirname(__file__)
-        creds_file = os.path.join(dirname, "conf/AST_L1B_ecs_options.xml")
-        with open(creds_file) as fin:
-            tree = xmltodict.parse(fin.read(), process_namespaces=True)
-        return tree
-    except:
+        creds_file = os.path.join(dirname, AST_L1B_ECS_OPTIONS)
+        with open(creds_file, 'r') as fin:
+            creds = json.load(fin)
+        return creds
+    except Exception as e:
         raise Exception(
-            'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
+            'Unable to parse {} from work directory\nError: {}'.format(AST_L1B_ECS_OPTIONS, e))
+
 
 def load_ast_09t_uat_ecs_options():
     '''loads the creds file into a dict'''
@@ -355,6 +293,7 @@ def load_ast_l1b_uat_ecs_options():
         raise Exception(
             'unable to parse conf/AST_L1B_ecs_options.xml from work directory')
 
+
 def exists(producer_granule_id, shortname, id):
     '''queries grq to see if the input id exists. Returns True if it does, False if not'''
     VERSION = "v1.0"
@@ -369,6 +308,7 @@ def exists(producer_granule_id, shortname, id):
     # es_query = {"query":{"bool":{"must":[{"query_string":{"default_field":"metadata.short_name.raw","query":shortname}},{"query_string":{"default_field":"metadata.id.raw","query":id}},{"query_string":{"default_field":"metadata.producer_granule_id.raw","query":producer_granule_id}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[],"aggs":{}}
     es_query = {"query":{"bool":{"must":[{"term":{"metadata.short_name.raw":shortname}},{"term":{"metadata.producer_granule_id.raw":producer_granule_id}},{"wildcard":{"metadata.title.raw":id}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"aggs":{}}
     return query_es(grq_url, es_query)
+
 
 def query_es(grq_url, es_query):
     '''simple single elasticsearch query, used for existence. returns count of result.'''

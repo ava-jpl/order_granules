@@ -1,0 +1,33 @@
+<ecs:options xmlns:ecs="http://ecs.nasa.gov/options" xmlns:lpdaac="http://lpdaac.usgs.gov/orderoptions.v1" xmlns:lpdaacSchemaLocation="/v1/AST_L1B_NN.xsd">
+
+				<!--Default distribution method is FTP Pull -->
+				<ecs:distribution>
+					<ecs:mediatype>
+						<ecs:value>FtpPull</ecs:value>
+					</ecs:mediatype>
+					<ecs:mediaformat>
+						<ecs:ftppull-format>
+							<ecs:value>FILEFORMAT</ecs:value>
+						</ecs:ftppull-format>
+					</ecs:mediaformat>
+				</ecs:distribution>
+
+				<ecs:processing>
+					<ecs:endpoint>http://elpdvx158.cr.usgs.gov:8380/tcoc/PXG_v1/ProcessingXMLGateway</ecs:endpoint>
+					<ecs:consider-processing-options-in-request-bundling>false</ecs:consider-processing-options-in-request-bundling>
+					<ecs:max-order-item-size>100</ecs:max-order-item-size>
+				</ecs:processing>
+
+				<lpdaac:subsetSpecification>
+					<lpdaac:productName criteriaName="Product Name" criteriaType="FIXED">AST_L1B</lpdaac:productName>
+					<lpdaac:longName criteriaName="Long Name" criteriaType="FIXED">ASTER L1B Registered Radiance at the Sensor</lpdaac:longName>
+					<lpdaac:granuleSize criteriaName="Granule_size" criteriaType="FIXED">0.0</lpdaac:granuleSize>
+					<lpdaac:fileFormat criteriaName="File Format" criteriaType="FIXED">
+						<lpdaac:fileFormatValue>HDF</lpdaac:fileFormatValue>
+					</lpdaac:fileFormat>
+					<lpdaac:astl1bResampling criteriaName="Resampling" criteriaType="STRING">
+						<lpdaac:astl1bResamplingValue>CC</lpdaac:astl1bResamplingValue>
+					</lpdaac:astl1bResampling>
+				</lpdaac:subsetSpecification>
+
+			</ecs:options>
