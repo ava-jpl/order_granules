@@ -136,7 +136,8 @@ def generate_token(cmr_url, username, password, client_id, user_ip_address):
         # make post call
         usrPass = "{}:{}".format(username, password).encode()
         b64Val = base64.b64encode(usrPass)
-        r = requests.post(url=post_token_url, headers={"Authorization": "Basic {}".format(b64Val.decode())})
+        headers = {"Authorization": "Basic {}".format(b64Val.decode())}
+        r = requests.post(url=post_token_url, headers=headers)
         print("POST TOKEN RESPONSE: {}".format(r.text))
 
         if (r.raise_for_status() is None):
@@ -153,17 +154,18 @@ def generate_token(cmr_url, username, password, client_id, user_ip_address):
 def get_token(cmr_url, username, password, client_id, user_ip_address):
     ''' Generate a CMR token using credentials. They will last for a month.'''
     try:
-        get_token_url = "{}/api/users/token".format(cmr_url)
+        get_token_url = "{}/api/users/tokens".format(cmr_url)
         print("GET TOKEN URL: {}".format(get_token_url))
 
         # make post call
         usrPass = "{}:{}".format(username, password).encode()
         b64Val = base64.b64encode(usrPass)
-        r = requests.get(url=get_token_url, headers={"Authorization": "Basic {}".format(b64Val.decode())})
+        headers = {"Authorization": "Basic {}".format(str(b64Val.decode()))}
+        r = requests.get(url=get_token_url, headers=headers)
         print("GET TOKEN RESPONSE: {}".format(r.text))
 
         if (r.raise_for_status() is None):
-            rdata = r.text
+            rdata = json.loads(r.text)
             if len(rdata) > 0:
                 token = rdata[0].get("access_token", None)
                 print("Valid CMR token: {}".format(token))
