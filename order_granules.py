@@ -80,7 +80,7 @@ def main():
         if not token:
             token = generate_token(cmr_url, username, password, client_id, user_ip_address)
         creds['token'] = token
-        update_creds(creds)
+        # update_creds(creds)
 
     # remove granules that exist in AVA
     for i in range(len(producer_granule_ids)):
