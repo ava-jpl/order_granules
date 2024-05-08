@@ -206,7 +206,7 @@ def submit_order(cmr_url, token, ecs_options, collection_concept_id, provider_id
         print("POST SUBMIT ORDER URL: {}".format(post_submit_order_url))
 
         # make post call
-        headers = {"Authorization": "Bearer {}".format(token)}
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 
         # body
         body = {
