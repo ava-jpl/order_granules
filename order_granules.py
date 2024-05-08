@@ -15,6 +15,7 @@ from hysds.celery import app
 # CMR enviorments
 CMR_URL_PROD = "https://urs.earthdata.nasa.gov"
 CMR_URL_UAT = "https://cmr.uat.earthdata.nasa.gov"
+CMR_ORDER_URL = "https://cmr.earthdata.nasa.gov"
 
 # ECS Options
 AST_09T_ECS_OPTIONS = "conf/AST_09T_2023_12_27.json"
@@ -123,7 +124,7 @@ def main():
     # submit orders 
     while len(order_items) > 0:
         order_batch = order_items[0:ORDER_LIMIT]
-        submit_order(cmr_url, token, ecs_options, collection_concept_id, provider_id, order_batch)
+        submit_order(CMR_ORDER_URL, token, ecs_options, collection_concept_id, provider_id, order_batch)
         del order_items[0:ORDER_LIMIT]
 
 
