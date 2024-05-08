@@ -74,9 +74,13 @@ def main():
         # update_creds(creds)
 
     if (token is False):
-        token = generate_token(cmr_url, username, password, client_id, user_ip_address)
+        # get valid token
+        token = get_token(cmr_url, username, password, client_id, user_ip_address)
+        # generate new token
+        if not token:
+            token = generate_token(cmr_url, username, password, client_id, user_ip_address)
         creds['token'] = token
-        # update_creds(creds)
+        update_creds(creds)
 
     # remove granules that exist in AVA
     for i in range(len(producer_granule_ids)):
@@ -141,6 +145,30 @@ def generate_token(cmr_url, username, password, client_id, user_ip_address):
             print("Generated CMR token: {}".format(token))
             logger.info("Generated CMR token: {}".format(token))
             return token
+
+    except Exception as e:
+        raise Exception("Unable to get valid CMR token using credentials\nError: {}".format(e))
+
+
+def get_token(cmr_url, username, password, client_id, user_ip_address):
+    ''' Generate a CMR token using credentials. They will last for a month.'''
+    try:
+        get_token_url = "{}/api/users/token".format(cmr_url)
+        print("GET TOKEN URL: {}".format(get_token_url))
+
+        # make post call
+        usrPass = "{}:{}".format(username, password).encode()
+        b64Val = base64.b64encode(usrPass)
+        r = requests.get(url=get_token_url, headers={"Authorization": "Basic {}".format(b64Val.decode())})
+        print("GET TOKEN RESPONSE: {}".format(r.text))
+
+        if (r.raise_for_status() is None):
+            rdata = r.text
+            if len(rdata) > 0:
+                token = rdata[0].get("access_token", None)
+                print("Valid CMR token: {}".format(token))
+                logger.info("Valid CMR token: {}".format(token))
+                return token
 
     except Exception as e:
         raise Exception("Unable generate a CMR token using credentials\nError: {}".format(e))
