@@ -15,20 +15,24 @@
       ]
     },
     {
-      "name": "producer_granule_id",
-      "from": "dataset_jpath:_source.metadata.producer_granule_id"
+      "name": "collection_concept_id",
+      "from": "dataset_jpath:_source.metadata.collection_concept_id"
     },
     {
-      "name": "dataset_id",
-      "from": "dataset_jpath:_source.metadata.dataset_id"
+      "name": "provider_id",
+      "from": "dataset_jpath:_source.metadata.dataset_center"
     },
     {
-      "name": "catalog_item_id",
+      "name": "granule_concept_id",
       "from": "dataset_jpath:_source.metadata.id"
     },
     {
       "name": "granule_ur",
       "from": "dataset_jpath:_source.metadata.title"
+    },
+    {
+      "name": "producer_granule_id",
+      "from": "dataset_jpath:_source.metadata.producer_granule_id"
     },
     {
       "name": "short_name",

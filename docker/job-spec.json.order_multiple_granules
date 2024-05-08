@@ -18,19 +18,23 @@
       "destination": "context"
     },
     {
-      "name": "producer_granule_id",
+      "name": "collection_concept_id",
       "destination": "context"
     },
     {
-      "name": "dataset_id",
+      "name": "provider_id",
       "destination": "context"
     },
     {
-      "name": "catalog_item_id",
+      "name": "granule_concept_id",
       "destination": "context"
     },
     {
       "name": "granule_ur",
+      "destination": "context"
+    },
+    {
+      "name": "producer_granule_id",
       "destination": "context"
     },
     {

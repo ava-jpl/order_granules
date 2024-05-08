@@ -7,7 +7,8 @@ USER ops
 COPY . /home/ops/verdi/ops/order_granules
 RUN set -ex \
     && sudo chown -R ops:ops /home/ops/verdi/ops/order_granules \
-    && /home/ops/verdi/bin/pip install xmltodict
+    && /home/ops/verdi/bin/pip install xmltodict \
+    && /home/ops/verdi/bin/pip install pandas
 
 WORKDIR /home/ops
 CMD ["/bin/bash", "--login"]
