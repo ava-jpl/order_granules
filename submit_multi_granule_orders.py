@@ -75,7 +75,7 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
 
     for item in hits:
         collection_concept_ids.append(item.get("_source").get("metadata").get("collection_concept_id"))
-        provider_ids.append(item.get("_source").get("metadata").get("dataset_center"))
+        provider_ids.append(item.get("_source").get("metadata").get("data_center"))
         granule_concept_ids.append(item.get("_source").get("metadata").get("id"))
         granule_urs.append(item.get("_source").get("metadata").get("title"))
         producer_granule_ids.append(item.get("_source").get("metadata").get("producer_granule_id"))     

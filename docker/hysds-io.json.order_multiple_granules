@@ -20,7 +20,7 @@
     },
     {
       "name": "provider_id",
-      "from": "dataset_jpath:_source.metadata.dataset_center"
+      "from": "dataset_jpath:_source.metadata.data_center"
     },
     {
       "name": "granule_concept_id",
