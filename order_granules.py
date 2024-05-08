@@ -218,7 +218,7 @@ def submit_order(cmr_url, token, ecs_options, collection_concept_id, provider_id
                 }
             }
 
-        r = requests.post(url=post_submit_order_url, headers=headers, body=json.dumps(body))
+        r = requests.post(url=post_submit_order_url, headers=headers, data=json.dumps(body))
         print("POST SUBMIT ORDER RESPONSE: {}".format(r.text))
         r.raise_for_status()
 
