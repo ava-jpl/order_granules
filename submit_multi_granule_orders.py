@@ -13,14 +13,14 @@ from hysds_commons.job_utils import resolve_hysds_job
 
 TEST = False
 
-if TEST == True:
+if TEST is True:
     es_url = "http://localhost:9203/"
 else:
     es_url = app.conf["GRQ_ES_URL"]
 
 ES = elasticsearch.Elasticsearch(es_url)
 
-def get_params(job_name, queue, job_version, priority, tags, shortname, starttime, endtime , env):
+def get_params(job_name, queue, job_version, priority, tags, shortname, starttime, endtime , env, geojson):
     """
     This function would query for all the granules for AST_09T or AST_L1B
     """
@@ -32,8 +32,14 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
         _type = "metadata-AST_09T"
         index = "grq_v1.0_metadata-ast_09t"
 
-    if starttime and endtime:
+    
+    if starttime and endtime and geojson:
+        geojson = json.loads(geojson)
+        query = {"query":{"bool":{"must":[{"range":{"starttime":{"gt": starttime,"lt": endtime}}}],"must_not":[],"should":[]}},"filter":{"geo_shape":{"location":{"shape": geojson}}}}
+
+    elif starttime and endtime:
         query = {"query":{"bool":{"must":[],"must_not":[],"should":[{"range":{"starttime":{"gt": starttime ,"lt": endtime }}}]}},"from":0,"size":10,"sort":[]}
+        # query = {"query":{"bool":{"must":[{"range":{"starttime":{"gt":starttime,"lt":endtime}}}],"must_not":[],"should":[]}},"sort":[],"aggs":{}}
     else:
         query = {"query":{"bool":{"must":[{"match_all":{}}],"must_not":[],"should":[]}},"sort":[]}
 
@@ -60,18 +66,19 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
             break
         hits.extend(res['hits']['hits'])
 
-    producer_granule_ids = []
-    dataset_ids = []
-    catalog_item_ids = [] 
+    collection_concept_ids = []
+    provider_ids = []
+    granule_concept_ids = []
     granule_urs = []
+    producer_granule_ids = []
     short_names = []
 
     for item in hits:
-        granule_info = dict()
-        producer_granule_ids.append(item.get("_source").get("metadata").get("producer_granule_id"))
-        dataset_ids.append(item.get("_source").get("metadata").get("dataset_id"))
-        catalog_item_ids.append(item.get("_source").get("metadata").get("id"))
+        collection_concept_ids.append(item.get("_source").get("metadata").get("collection_concept_id"))
+        provider_ids.append(item.get("_source").get("metadata").get("dataset_center"))
+        granule_concept_ids.append(item.get("_source").get("metadata").get("id"))
         granule_urs.append(item.get("_source").get("metadata").get("title"))
+        producer_granule_ids.append(item.get("_source").get("metadata").get("producer_granule_id"))     
         short_names.append(item.get("_source").get("metadata").get("short_name"))
 
     # for item in hits:
@@ -83,10 +90,11 @@ def get_params(job_name, queue, job_version, priority, tags, shortname, starttim
 
         params = {
             "cmr_enviorment": env,
-            "producer_granule_id": producer_granule_ids,
-            "dataset_id": dataset_ids,
-            "catalog_item_id": catalog_item_ids,
+            "collection_concept_id": collection_concept_ids,
+            "provider_id": provider_ids,
+            "granule_concept_id": granule_concept_ids,
             "granule_ur": granule_urs,
+            "producer_granule_id": producer_granule_ids,
             "short_name": short_names
         }
 
@@ -141,7 +149,11 @@ if __name__ == '__main__':
                         dest='starttime', required=False)
     parser.add_argument('-et', '--endtime', help='endtime: 2021-12-01T00:00:00.000Z',
                         dest='endtime', required=False)
+    parser.add_argument('-geo', '--geojson', help='geojson of desired location',
+                        dest='geojson', required=False)
     args = parser.parse_args()
-    params = get_params(args.job_name, args.queue, args.version, args.priority, args.tags, args.short_name, args.starttime, args.endtime, args.env)
+    params = get_params(args.job_name, args.queue, args.version, args.priority, args.tags, args.short_name, args.starttime, args.endtime, args.env, args.geojson)
     print(json.dumps(params, indent=4, sort_keys=True))
-    submit_job(args.job_name, params)
+
+    if TEST is False:
+        submit_job(args.job_name, params)
