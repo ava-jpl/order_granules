@@ -92,9 +92,9 @@ def main():
     # remove granules that exist in AVA
     for i in range(len(producer_granule_ids)):
         # check if granule is already in the system
-        exists = exists(producer_granule_ids[i], short_names[i], granule_urs[i])
-        if exists:
+        if exists(producer_granule_ids[i], short_names[i], granule_urs[i]):
             logger.warning("{} already exists in AVA".format(granule_urs[i]))
+            continue
         else:
             filtered_producer_granule_ids.append(producer_granule_ids[i])
             filtered_collection_concept_ids.append(collection_concept_ids[i])
