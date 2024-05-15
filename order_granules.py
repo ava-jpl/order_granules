@@ -83,49 +83,58 @@ def main():
         creds['token'] = token
         # update_creds(creds)
 
+    filtered_producer_granule_ids = []
+    filtered_collection_concept_ids = []
+    filtered_granule_concept_ids = []
+    filtered_granule_urs = []
+    filtered_short_names =[]
+    filtered_provider_ids = []
     # remove granules that exist in AVA
     for i in range(len(producer_granule_ids)):
         # check if granule is already in the system
-        if exists(producer_granule_ids[i], short_names[i], granule_urs[i]):
+        exists = exists(producer_granule_ids[i], short_names[i], granule_urs[i])
+        if exists:
             logger.warning("{} already exists in AVA".format(granule_urs[i]))
-            producer_granule_ids.pop(i)
-            collection_concept_ids.pop(i)
-            granule_concept_ids.pop(i)
-            granule_urs.pop(i)
-            short_names.pop(i)
-            provider_ids.pop(i)
+        else:
+            filtered_producer_granule_ids.append(producer_granule_ids[i])
+            filtered_collection_concept_ids.append(collection_concept_ids[i])
+            filtered_granule_concept_ids.append(granule_concept_ids[i])
+            filtered_granule_urs.append(granule_urs[i])
+            filtered_short_names.append(short_names[i])
+            filtered_provider_ids.append(provider_ids[i])
 
-    # create order items dataframe
-    order_items_df = pd.DataFrame({
-                "granuleConceptId": granule_concept_ids,
-                "granuleUr": granule_urs,
-                "producerGranuleId": producer_granule_ids
-            })
-    order_items = order_items_df.to_dict('records')
+    if filtered_producer_granule_ids:
+        # create order items dataframe
+        order_items_df = pd.DataFrame({
+                    "granuleConceptId": filtered_granule_concept_ids,
+                    "granuleUr": filtered_granule_urs,
+                    "producerGranuleId": filtered_producer_granule_ids
+                })
+        order_items = order_items_df.to_dict('records')
 
-    # get collectionConceptId, short_name, and provider_id
-    collection_concept_id = set(collection_concept_ids).pop()
-    provider_id = set(provider_ids).pop()
-    short_name = set(short_names).pop()
+        # get collectionConceptId, short_name, and provider_id
+        collection_concept_id = set(filtered_collection_concept_ids).pop()
+        provider_id = set(filtered_provider_ids).pop()
+        short_name = set(filtered_short_names).pop()
 
-    # get ecs options
-    ecs_options = {}
-    if short_name == "AST_L1B":
-        # if cmr_url == CMR_URL_UAT:
-        #     body = load_ast_l1b_uat_ecs_options()
-        # else:
-        ecs_options = load_ast_l1b_ecs_options()
-    elif short_name == "AST_09T":
-        # if cmr_url == CMR_URL_UAT:
-        #     body = load_ast_09t_uat_ecs_options()
-        # else:
-        ecs_options = load_ast_09t_ecs_options()
+        # get ecs options
+        ecs_options = {}
+        if short_name == "AST_L1B":
+            # if cmr_url == CMR_URL_UAT:
+            #     body = load_ast_l1b_uat_ecs_options()
+            # else:
+            ecs_options = load_ast_l1b_ecs_options()
+        elif short_name == "AST_09T":
+            # if cmr_url == CMR_URL_UAT:
+            #     body = load_ast_09t_uat_ecs_options()
+            # else:
+            ecs_options = load_ast_09t_ecs_options()
 
-    # submit orders 
-    while len(order_items) > 0:
-        order_batch = order_items[0:ORDER_LIMIT]
-        submit_order(CMR_ORDER_URL, token, ecs_options, collection_concept_id, provider_id, order_batch)
-        del order_items[0:ORDER_LIMIT]
+        # submit orders 
+        while len(order_items) > 0:
+            order_batch = order_items[0:ORDER_LIMIT]
+            submit_order(CMR_ORDER_URL, token, ecs_options, collection_concept_id, provider_id, order_batch)
+            del order_items[0:ORDER_LIMIT]
 
 
 def generate_token(cmr_url, username, password, client_id, user_ip_address):
